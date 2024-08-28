@@ -1,5 +1,6 @@
 import tkinter as tk
-from tkinter import ttk
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
@@ -18,50 +19,50 @@ class NozzlePathApp:
 
     def create_widgets(self):
         # Frame for the corner inputs
-        corner_frame = ttk.Frame(self.root)
+        corner_frame = ttk.Frame(self.root, padding=10)
         corner_frame.grid(row=0, column=0, padx=10, pady=10)
 
-        ttk.Label(corner_frame, text="Corner 1 (X, Y):").grid(row=0, column=0, padx=5, pady=5)
-        self.corner1_x_entry = ttk.Entry(corner_frame, width=10)
+        ttk.Label(corner_frame, text="Corner 1 (X, Y):", font='Arial 10 bold').grid(row=0, column=0, padx=5, pady=5)
+        self.corner1_x_entry = ttk.Entry(corner_frame, width=10, bootstyle="info")
         self.corner1_x_entry.grid(row=0, column=1, padx=5, pady=5)
-        self.corner1_y_entry = ttk.Entry(corner_frame, width=10)
+        self.corner1_y_entry = ttk.Entry(corner_frame, width=10, bootstyle="info")
         self.corner1_y_entry.grid(row=0, column=2, padx=5, pady=5)
 
-        ttk.Label(corner_frame, text="Corner 2 (X, Y):").grid(row=1, column=0, padx=5, pady=5)
-        self.corner2_x_entry = ttk.Entry(corner_frame, width=10)
+        ttk.Label(corner_frame, text="Corner 2 (X, Y):", font='Arial 10 bold').grid(row=1, column=0, padx=5, pady=5)
+        self.corner2_x_entry = ttk.Entry(corner_frame, width=10, bootstyle="info")
         self.corner2_x_entry.grid(row=1, column=1, padx=5, pady=5)
-        self.corner2_y_entry = ttk.Entry(corner_frame, width=10)
+        self.corner2_y_entry = ttk.Entry(corner_frame, width=10, bootstyle="info")
         self.corner2_y_entry.grid(row=1, column=2, padx=5, pady=5)
 
-        ttk.Label(corner_frame, text="Corner 3 (X, Y):").grid(row=2, column=0, padx=5, pady=5)
-        self.corner3_x_entry = ttk.Entry(corner_frame, width=10)
+        ttk.Label(corner_frame, text="Corner 3 (X, Y):", font='Arial 10 bold').grid(row=2, column=0, padx=5, pady=5)
+        self.corner3_x_entry = ttk.Entry(corner_frame, width=10, bootstyle="info")
         self.corner3_x_entry.grid(row=2, column=1, padx=5, pady=5)
-        self.corner3_y_entry = ttk.Entry(corner_frame, width=10)
+        self.corner3_y_entry = ttk.Entry(corner_frame, width=10, bootstyle="info")
         self.corner3_y_entry.grid(row=2, column=2, padx=5, pady=5)
 
-        ttk.Label(corner_frame, text="Corner 4 (X, Y):").grid(row=3, column=0, padx=5, pady=5)
-        self.corner4_x_entry = ttk.Entry(corner_frame, width=10)
+        ttk.Label(corner_frame, text="Corner 4 (X, Y):", font='Arial 10 bold').grid(row=3, column=0, padx=5, pady=5)
+        self.corner4_x_entry = ttk.Entry(corner_frame, width=10, bootstyle="info")
         self.corner4_x_entry.grid(row=3, column=1, padx=5, pady=5)
-        self.corner4_y_entry = ttk.Entry(corner_frame, width=10)
+        self.corner4_y_entry = ttk.Entry(corner_frame, width=10, bootstyle="info")
         self.corner4_y_entry.grid(row=3, column=2, padx=5, pady=5)
 
-        self.draw_shape_button = ttk.Button(corner_frame, text="Draw Shape", command=self.draw_shape)
+        self.draw_shape_button = ttk.Button(corner_frame, text="Draw Shape", command=self.draw_shape, bootstyle="success-outline")
         self.draw_shape_button.grid(row=4, column=0, columnspan=3, pady=10)
 
-        control_frame = ttk.Frame(self.root)
+        control_frame = ttk.Frame(self.root, padding=10)
         control_frame.grid(row=1, column=0, padx=10, pady=10)
 
-        ttk.Label(control_frame, text="Spray Action:").grid(row=0, column=0, padx=5, pady=5)
+        ttk.Label(control_frame, text="Spray Action:", font='Arial 10 bold').grid(row=0, column=0, padx=5, pady=5)
         self.spray_action_var = tk.StringVar(value="Start")
-        ttk.OptionMenu(control_frame, self.spray_action_var, "Start", "Start", "Stop", "Resume").grid(row=0, column=1, padx=5, pady=5)
+        ttk.OptionMenu(control_frame, self.spray_action_var, "Start", "Start", "Stop", "Resume", bootstyle="info").grid(row=0, column=1, padx=5, pady=5)
 
-        self.add_point_button = ttk.Button(control_frame, text="Add Point", command=self.add_point)
+        self.add_point_button = ttk.Button(control_frame, text="Add Point", command=self.add_point, bootstyle="primary-outline")
         self.add_point_button.grid(row=1, column=0, columnspan=2, pady=10)
 
-        self.clear_button = ttk.Button(control_frame, text="Clear All", command=self.clear_all)
+        self.clear_button = ttk.Button(control_frame, text="Clear All", command=self.clear_all, bootstyle="danger-outline")
         self.clear_button.grid(row=2, column=0, columnspan=2, pady=10)
 
-        self.generate_path_button = ttk.Button(control_frame, text="Generate G-code", command=self.generate_gcode)
+        self.generate_path_button = ttk.Button(control_frame, text="Generate G-code", command=self.generate_gcode, bootstyle="warning-outline")
         self.generate_path_button.grid(row=3, column=0, columnspan=2, pady=10)
 
         # Add a text box for displaying the generated G-code
@@ -93,8 +94,16 @@ class NozzlePathApp:
             self.points.append((x, y))
             spray_action = self.spray_action_var.get()
             self.spray_actions.append(spray_action)
+
+            # Plot the point
             self.ax.plot(x, y, 'ro')
             self.ax.annotate(f"{spray_action}", (x, y), textcoords="offset points", xytext=(5,5), ha='center')
+
+            # Draw the path if there are at least two points
+            if len(self.points) > 1:
+                x_vals, y_vals = zip(*self.points)
+                self.ax.plot(x_vals, y_vals, 'b-')  # Draw the path
+
             self.canvas.draw()
 
     def draw_shape(self):
@@ -121,13 +130,11 @@ class NozzlePathApp:
             self.show_error("Please enter valid numbers for the corners.")
 
     def add_point(self):
-        if self.shape_drawn and event.inaxes is not None:  # Only allow point addition if the shape is drawn
-            x, y = event.xdata, event.ydata
-            self.points.append((x, y))
+        if self.shape_drawn and len(self.points) > 0:
+            last_point = self.points[-1]
             spray_action = self.spray_action_var.get()
             self.spray_actions.append(spray_action)
-            self.ax.plot(x, y, 'ro')
-            self.ax.annotate(f"{spray_action}", (x, y), textcoords="offset points", xytext=(5, 5), ha='center')
+            self.ax.annotate(f"{spray_action}", last_point, textcoords="offset points", xytext=(5,5), ha='center')
             self.canvas.draw()
 
     def clear_all(self):
@@ -192,12 +199,11 @@ class NozzlePathApp:
         print(gcode_str)
 
     def show_error(self, message):
-        error_window = tk.Toplevel(self.root)
-        error_window.title("Error")
+        error_window = ttk.Window(self.root, title="Error")
         ttk.Label(error_window, text=message, padding=10).pack()
-        ttk.Button(error_window, text="Close", command=error_window.destroy).pack(pady=5)
+        ttk.Button(error_window, text="Close", command=error_window.destroy, bootstyle="danger").pack(pady=5)
 
 if __name__ == "__main__":
-    root = tk.Tk()
+    root = ttk.Window(themename="flatly")  # You can choose from various themes like 'darkly', 'flatly', etc.
     app = NozzlePathApp(root)
     root.mainloop()
