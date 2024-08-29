@@ -5,6 +5,8 @@ from ttkbootstrap.constants import *
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import json
+import os
 
 class NozzlePathApp:
     def __init__(self, root):
@@ -26,7 +28,8 @@ class NozzlePathApp:
 
         self.laptop_assignments = {}  # Track template assignments to laptops
 
-        self.create_widgets()
+        self.create_widgets()  # Initialize widgets and then load templates
+        self.load_templates()  # Load templates from file if available
 
     def create_widgets(self):
         main_frame = ttk.Frame(self.root)
@@ -53,15 +56,21 @@ class NozzlePathApp:
         self.spray_action_var = tk.StringVar(value="Start")
         ttk.OptionMenu(control_frame, self.spray_action_var, "Start", "Start", "Stop", "Resume", bootstyle="info").pack(pady=5)
 
+        self.template_dropdown = ttk.OptionMenu(control_frame, self.current_template, "Select Template")
+        self.template_dropdown.pack(pady=10)
+
         self.assign_template_button = ttk.Button(control_frame, text="Assign Template", command=self.assign_template_to_laptop, bootstyle="primary-outline")
         self.assign_template_button.pack(pady=10)
 
-        self.template_dropdown = ttk.OptionMenu(control_frame, self.current_template, "Select Template", *self.templates.keys())
-        self.template_dropdown.pack(pady=10)
-
-        # G-code generation button
+        # G-code generation and copy buttons
         self.generate_code_button = ttk.Button(control_frame, text="Generate G-code", command=self.generate_gcode, bootstyle="warning-outline")
         self.generate_code_button.pack(pady=10)
+
+        self.copy_button = ttk.Button(control_frame, text="Copy G-code", command=self.copy_gcode, bootstyle="primary-outline")
+        self.copy_button.pack(pady=10)
+
+        self.clear_table_button = ttk.Button(control_frame, text="Clear Table", command=self.clear_table, bootstyle="danger-outline")
+        self.clear_table_button.pack(pady=10)
 
         # Textbox for displaying G-code
         self.gcode_output = tk.Text(control_frame, height=10, width=40)
@@ -93,24 +102,25 @@ class NozzlePathApp:
         return canvas, ax
 
     def draw_table_with_laptops(self):
-        table_width = 150
-        table_height = 300
-        laptop_width = 32
-        laptop_height = 43
-        x_gap = 2
-        y_gap = 5
+        table_width = 1500
+        table_height = 3000
+        laptop_width = 320
+        laptop_height = 430
+        x_gap = 20
+        y_gap = 50
+        margin = 100  # Margin around the entire grid of laptops
 
-        # Calculate total width and height of all laptops with gaps
+        # Calculate total area needed for laptops and gaps
         total_laptops_width = 4 * laptop_width + 3 * x_gap
         total_laptops_height = 6 * laptop_height + 5 * y_gap
 
-        # Calculate offsets to center the laptops on the table
+        # Center the laptops on the table with the margin around them
         x_offset = (table_width - total_laptops_width) / 2
         y_offset = (table_height - total_laptops_height) / 2
 
-        # Draw the table
-        self.ax.set_xlim(0, table_width)
-        self.ax.set_ylim(0, table_height)
+        # Adjust the coordinate system for the table with margin
+        self.ax.set_xlim(0 - margin, table_width + margin)
+        self.ax.set_ylim(0 - margin, table_height + margin)
         self.ax.add_patch(Rectangle((0, 0), table_width, table_height, fill=None, edgecolor='black'))
 
         laptop_number = 1
@@ -216,6 +226,7 @@ class NozzlePathApp:
         if template_name:
             self.templates[template_name] = (self.template_points.copy(), self.template_spray_actions.copy(), self.template_axis_values.copy())
             self.update_template_dropdown()
+            self.save_templates_to_file()  # Save templates to file
             tk.messagebox.showinfo("Template Saved", f"Template '{template_name}' saved successfully!")
         else:
             tk.messagebox.showerror("Error", "Please enter a template name.")
@@ -290,9 +301,38 @@ class NozzlePathApp:
         self.template_points.clear()
         self.template_spray_actions.clear()
         self.template_axis_values.clear()
-        self.template_ax.set_xlim(0, 100)
-        self.template_ax.set_ylim(0, 100)
+
+        # Adjusting the template canvas with margin around the template
+        template_width = 320  # Laptop width
+        template_height = 430  # Laptop height
+        margin = 100  # Margin around the template
+
+        self.template_ax.set_xlim(-margin, template_width + margin)
+        self.template_ax.set_ylim(-margin, template_height + margin)
+        self.template_ax.add_patch(Rectangle((0, 0), template_width, template_height, fill=None, edgecolor='black'))
+
         self.template_canvas.draw()
+
+    def clear_table(self):
+        self.ax.cla()
+        self.laptop_assignments.clear()
+        self.laptops.clear()
+        self.draw_table_with_laptops()
+
+    def copy_gcode(self):
+        self.root.clipboard_clear()
+        self.root.clipboard_append(self.gcode_output.get(1.0, tk.END))
+        tk.messagebox.showinfo("Copied", "G-code has been copied to clipboard.")
+
+    def save_templates_to_file(self):
+        with open('templates.json', 'w') as f:
+            json.dump(self.templates, f)
+
+    def load_templates(self):
+        if os.path.exists('templates.json'):
+            with open('templates.json', 'r') as f:
+                self.templates = json.load(f)
+            self.update_template_dropdown()
 
 if __name__ == "__main__":
     root = ttkb.Window(themename="flatly")
