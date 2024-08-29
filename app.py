@@ -1,258 +1,300 @@
 import tkinter as tk
-import ttkbootstrap as ttk
+from tkinter import ttk
+import ttkbootstrap as ttkb
 from ttkbootstrap.constants import *
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 class NozzlePathApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Nozzle Path Planner")
+        self.root.title("Laptop Painting and Nozzle Path Planner")
 
-        self.points = []
-        self.spray_actions = []
-        self.corners = []
-        self.axis_values = []  # Store (A, B) values for each point
-        self.shape_drawn = False  # Track if the shape has been drawn
-        self.current_laptop = 1
+        self.selected_laptop = None
+        self.laptops = []
+        self.templates = {}
+        self.current_template = tk.StringVar(value="Select Template")
+
+        self.template_points = []
+        self.template_spray_actions = []
+        self.template_axis_values = []  # Store (A, B, Z) values for each template point
+
+        self.last_a_value = 0  # Last entered A value
+        self.last_b_value = 0  # Last entered B value
+        self.last_z_value = 0  # Last entered Z value
+
+        self.laptop_assignments = {}  # Track template assignments to laptops
 
         self.create_widgets()
-        self.setup_plot()
 
     def create_widgets(self):
-        # Frame for the corner inputs
-        corner_frame = ttk.Frame(self.root, padding=10)
-        corner_frame.grid(row=0, column=0, padx=10, pady=10, sticky="n")
+        main_frame = ttk.Frame(self.root)
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
-        ttk.Label(corner_frame, text=f"Laptop {self.current_laptop} Corners (X, Y):", font='Arial 10 bold').grid(row=0, column=0, columnspan=3)
+        control_frame = ttk.Frame(main_frame, padding=10)
+        control_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
 
-        ttk.Label(corner_frame, text="Corner 1:").grid(row=1, column=0, padx=5, pady=5)
-        self.corner1_x_entry = ttk.Entry(corner_frame, width=10, bootstyle="info")
-        self.corner1_x_entry.grid(row=1, column=1, padx=5, pady=5)
-        self.corner1_y_entry = ttk.Entry(corner_frame, width=10, bootstyle="info")
-        self.corner1_y_entry.grid(row=1, column=2, padx=5, pady=5)
+        # Template creation and management
+        self.template_frame = ttk.Frame(main_frame, padding=10)
+        self.template_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        ttk.Label(corner_frame, text="Corner 2:").grid(row=2, column=0, padx=5, pady=5)
-        self.corner2_x_entry = ttk.Entry(corner_frame, width=10, bootstyle="info")
-        self.corner2_x_entry.grid(row=2, column=1, padx=5, pady=5)
-        self.corner2_y_entry = ttk.Entry(corner_frame, width=10, bootstyle="info")
-        self.corner2_y_entry.grid(row=2, column=2, padx=5, pady=5)
+        self.clear_button = ttk.Button(control_frame, text="Clear Template", command=self.clear_template, bootstyle="danger-outline")
+        self.clear_button.pack(pady=10)
 
-        ttk.Label(corner_frame, text="Corner 3:").grid(row=3, column=0, padx=5, pady=5)
-        self.corner3_x_entry = ttk.Entry(corner_frame, width=10, bootstyle="info")
-        self.corner3_x_entry.grid(row=3, column=1, padx=5, pady=5)
-        self.corner3_y_entry = ttk.Entry(corner_frame, width=10, bootstyle="info")
-        self.corner3_y_entry.grid(row=3, column=2, padx=5, pady=5)
+        self.save_template_button = ttk.Button(control_frame, text="Save Template", command=self.save_template, bootstyle="success-outline")
+        self.save_template_button.pack(pady=10)
 
-        ttk.Label(corner_frame, text="Corner 4:").grid(row=4, column=0, padx=5, pady=5)
-        self.corner4_x_entry = ttk.Entry(corner_frame, width=10, bootstyle="info")
-        self.corner4_x_entry.grid(row=4, column=1, padx=5, pady=5)
-        self.corner4_y_entry = ttk.Entry(corner_frame, width=10, bootstyle="info")
-        self.corner4_y_entry.grid(row=4, column=2, padx=5, pady=5)
+        self.template_name_entry = ttk.Entry(control_frame, width=20, bootstyle="info")
+        self.template_name_entry.pack(pady=10)
+        self.template_name_entry.insert(0, "Template Name")
 
-        self.draw_shape_button = ttk.Button(corner_frame, text="Draw Shape", command=self.draw_shape, bootstyle="success-outline")
-        self.draw_shape_button.grid(row=5, column=0, columnspan=3, pady=10)
-
-        control_frame = ttk.Frame(self.root, padding=10)
-        control_frame.grid(row=1, column=0, padx=10, pady=10, sticky="n")
-
-        ttk.Label(control_frame, text="Spray Action:", font='Arial 10 bold').grid(row=0, column=0, padx=5, pady=5)
+        ttk.Label(control_frame, text="Spray Action:", font='Arial 10 bold').pack(pady=5)
         self.spray_action_var = tk.StringVar(value="Start")
-        ttk.OptionMenu(control_frame, self.spray_action_var, "Start", "Start", "Stop", "Resume", bootstyle="info").grid(row=0, column=1, padx=5, pady=5)
+        ttk.OptionMenu(control_frame, self.spray_action_var, "Start", "Start", "Stop", "Resume", bootstyle="info").pack(pady=5)
 
-        self.clear_button = ttk.Button(control_frame, text="Clear All", command=self.clear_all, bootstyle="danger-outline")
-        self.clear_button.grid(row=1, column=0, columnspan=2, pady=10)
+        self.assign_template_button = ttk.Button(control_frame, text="Assign Template", command=self.assign_template_to_laptop, bootstyle="primary-outline")
+        self.assign_template_button.pack(pady=10)
 
-        self.generate_path_button = ttk.Button(control_frame, text="Generate G-code", command=self.generate_gcode, bootstyle="warning-outline")
-        self.generate_path_button.grid(row=2, column=0, columnspan=2, pady=10)
+        self.template_dropdown = ttk.OptionMenu(control_frame, self.current_template, "Select Template", *self.templates.keys())
+        self.template_dropdown.pack(pady=10)
 
-        # Add a frame for the plot and G-code output on the right side
-        right_frame = ttk.Frame(self.root, padding=10)
-        right_frame.grid(row=0, column=1, rowspan=2, padx=10, pady=10, sticky="nsew")
+        # G-code generation button
+        self.generate_code_button = ttk.Button(control_frame, text="Generate G-code", command=self.generate_gcode, bootstyle="warning-outline")
+        self.generate_code_button.pack(pady=10)
 
-        # Add a text box for displaying the generated G-code
-        self.gcode_output = tk.Text(right_frame, height=10, width=50)
-        self.gcode_output.grid(row=1, column=0, padx=10, pady=10)
+        # Textbox for displaying G-code
+        self.gcode_output = tk.Text(control_frame, height=10, width=40)
+        self.gcode_output.pack(pady=10)
 
-    def setup_plot(self):
-        self.fig, self.ax = plt.subplots()  # Create the figure and axes
-        self.canvas = FigureCanvasTkAgg(self.fig, master=self.root)  # Initialize the canvas with the figure
-        self.canvas.get_tk_widget().grid(row=0, column=1, rowspan=2, padx=10, pady=10)  # Place the canvas in the GUI
-        self.canvas.draw()  # Draw the initial empty plot
+        # Table display and template assignment area
+        self.canvas_frame = ttk.Frame(main_frame, padding=10)
+        self.canvas_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        self.initialize_plot()  # Now initialize the plot (clear it and set axes)
-        self.canvas.mpl_connect("button_press_event", self.on_click)
+        # Template Creation Canvas
+        self.template_canvas_frame = ttk.Frame(self.template_frame, padding=10)
+        self.template_canvas_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-    def initialize_plot(self):
-        """Initializes the plot without any shapes."""
-        self.ax.cla()  # Clear the current axes
-        self.ax.set_xlim(0, 100)  # Reset X axis limits
-        self.ax.set_ylim(0, 100)  # Reset Y axis limits
-        self.ax.set_xlabel("X Axis")  # Reset X axis label
-        self.ax.set_ylabel("Y Axis")  # Reset Y axis label
-        self.ax.grid(True)  # Re-enable the grid
-        self.canvas.draw()  # Redraw the canvas
+        self.template_canvas, self.template_ax = self.create_plot(self.template_canvas_frame, "Template Creation")
+        self.template_canvas.mpl_connect("button_press_event", self.on_template_click)
 
-    def on_click(self, event):
-        if self.shape_drawn and event.inaxes is not None:  # Only allow point addition if the shape is drawn
+        # Table with laptops Canvas
+        self.table_canvas_frame = ttk.Frame(self.canvas_frame, padding=10)
+        self.table_canvas_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+        self.table_canvas, self.ax = self.create_plot(self.table_canvas_frame, "Table Layout")
+        self.draw_table_with_laptops()
+
+    def create_plot(self, parent_frame, title):
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ax.set_title(title)
+        canvas = FigureCanvasTkAgg(fig, master=parent_frame)
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        return canvas, ax
+
+    def draw_table_with_laptops(self):
+        table_width = 150
+        table_height = 300
+        laptop_width = 32
+        laptop_height = 43
+        x_gap = 2
+        y_gap = 5
+
+        # Calculate total width and height of all laptops with gaps
+        total_laptops_width = 4 * laptop_width + 3 * x_gap
+        total_laptops_height = 6 * laptop_height + 5 * y_gap
+
+        # Calculate offsets to center the laptops on the table
+        x_offset = (table_width - total_laptops_width) / 2
+        y_offset = (table_height - total_laptops_height) / 2
+
+        # Draw the table
+        self.ax.set_xlim(0, table_width)
+        self.ax.set_ylim(0, table_height)
+        self.ax.add_patch(Rectangle((0, 0), table_width, table_height, fill=None, edgecolor='black'))
+
+        laptop_number = 1
+        for row in range(6):
+            for col in range(4):
+                x = col * (laptop_width + x_gap) + x_offset
+                y = row * (laptop_height + y_gap) + y_offset
+                laptop = Rectangle((x, y), laptop_width, laptop_height, fill=None, edgecolor='blue')
+                self.ax.add_patch(laptop)
+                text = self.ax.text(x + laptop_width / 2, y + laptop_height / 2, str(laptop_number), color="black", ha='center', va='center', fontsize=8)
+                text.set_picker(True)  # Enable picking for the laptop number
+                self.laptops.append((laptop, laptop_number, (x, y, laptop_width, laptop_height), text))
+                laptop_number += 1
+
+        self.ax.set_aspect('equal')
+        self.table_canvas.draw()
+        self.table_canvas.mpl_connect("pick_event", self.on_laptop_number_click)
+
+    def on_template_click(self, event):
+        if event.inaxes is not None:
             x, y = event.xdata, event.ydata
-            self.points.append((x, y))
+            self.template_points.append((x, y))
             spray_action = self.spray_action_var.get()
-            self.spray_actions.append(spray_action)
+            self.template_spray_actions.append(spray_action)
 
-            # Plot the point
-            self.ax.plot(x, y, 'ro')
-            self.ax.annotate(f"{spray_action}", (x, y), textcoords="offset points", xytext=(5, 5), ha='center')
+            self.template_ax.plot(x, y, 'ro')
+            self.template_ax.annotate(f"{spray_action}", (x, y), textcoords="offset points", xytext=(5, 5), ha='center')
 
-            if spray_action.lower() in ["start", "resume"]:
-                # Create entry fields for A and B axes
-                a_label = ttk.Label(self.root, text="A:", font='Arial 8 bold')
-                a_entry = ttk.Entry(self.root, width=5, bootstyle="info")
-                b_label = ttk.Label(self.root, text="B:", font='Arial 8 bold')
-                b_entry = ttk.Entry(self.root, width=5, bootstyle="info")
+            self.show_abz_popup(x, y, is_template=True)
 
-                # Place the entry fields above the plot (as per your image)
-                a_label.place(x=event.x + 50, y=event.y - 40)
-                a_entry.place(x=event.x + 70, y=event.y - 40)
-                b_label.place(x=event.x + 50, y=event.y - 10)
-                b_entry.place(x=event.x + 70, y=event.y - 10)
+            if len(self.template_points) > 1:
+                x_vals, y_vals = zip(*self.template_points)
+                self.template_ax.plot(x_vals, y_vals, 'b-')
 
-                # Add a button to confirm the axis values
-                save_button = ttk.Button(self.root, text="Save", bootstyle="success")
-                save_button.place(x=event.x + 50, y=event.y + 20)
+            self.template_canvas.draw()
 
-                def save_axis_values():
-                    try:
-                        a_value = float(a_entry.get())
-                        b_value = float(b_entry.get())
-                        self.axis_values.append((a_value, b_value))
-                        a_label.destroy()
-                        a_entry.destroy()
-                        b_label.destroy()
-                        b_entry.destroy()
-                        save_button.destroy()
-                        # Show the A and B values next to the point
-                        self.ax.annotate(f"A:{a_value}, B:{b_value}", (x, y), textcoords="offset points", xytext=(10, -10), ha='center', color='blue')
-                        self.canvas.draw()
-                    except ValueError:
-                        self.show_error("Please enter valid numbers for A and B axes.")
+    def on_laptop_number_click(self, event):
+        if event.artist in [l[3] for l in self.laptops]:  # Check if the clicked artist is a laptop number
+            for laptop, number, (lx, ly, width, height), text in self.laptops:
+                if event.artist == text:
+                    self.selected_laptop = number
+                    self.highlight_laptop(lx, ly, width, height, self.current_template.get())
+                    self.laptop_assignments[number] = self.current_template.get()
+                    self.table_canvas.draw()
+                    break
 
-                save_button.config(command=save_axis_values)
+    def highlight_laptop(self, x, y, width, height, template_name):
+        # Highlight the laptop with a different color and display the template name at the top
+        self.ax.add_patch(Rectangle((x, y), width, height, fill=True, color='green', alpha=0.3))
+        self.ax.text(x + width / 2, y + height + 5, template_name, color="black", ha='center', va='bottom', fontsize=8)
+        self.ax.text(x + width / 2, y + height / 2, self.selected_laptop, color="black", ha='center', va='center', fontsize=10)
 
-            else:
-                self.axis_values.append((0, 0))  # Default A, B values for "Stop"
+    def show_abz_popup(self, x, y, is_template=False):
+        popup = tk.Toplevel(self.root)
+        popup.title("Enter A, B & Z Values")
 
-            # Draw the path if there are at least two points
-            if len(self.points) > 1:
-                x_vals, y_vals = zip(*self.points)
-                self.ax.plot(x_vals, y_vals, 'b-')  # Draw the path
+        tk.Label(popup, text="Enter A value:").grid(row=0, column=0, padx=10, pady=10)
+        a_entry = ttk.Entry(popup, width=10, bootstyle="info")
+        a_entry.grid(row=0, column=1, padx=10, pady=10)
+        a_entry.insert(0, self.last_a_value)
 
-            self.canvas.draw()
+        tk.Label(popup, text="Enter B value:").grid(row=1, column=0, padx=10, pady=10)
+        b_entry = ttk.Entry(popup, width=10, bootstyle="info")
+        b_entry.grid(row=1, column=1, padx=10, pady=10)
+        b_entry.insert(0, self.last_b_value)
 
-    def draw_shape(self):
-        try:
-            # Collect corner points from the entries
-            corner1 = (float(self.corner1_x_entry.get()), float(self.corner1_y_entry.get()))
-            corner2 = (float(self.corner2_x_entry.get()), float(self.corner2_y_entry.get()))
-            corner3 = (float(self.corner3_x_entry.get()), float(self.corner3_y_entry.get()))
-            corner4 = (float(self.corner4_x_entry.get()), float(self.corner4_y_entry.get()))
+        tk.Label(popup, text="Enter Z value:").grid(row=2, column=0, padx=10, pady=10)
+        z_entry = ttk.Entry(popup, width=10, bootstyle="info")
+        z_entry.grid(row=2, column=1, padx=10, pady=10)
+        z_entry.insert(0, self.last_z_value)
 
-            self.corners = [corner1, corner2, corner3, corner4]
+        def save_abz_values():
+            try:
+                a_value = float(a_entry.get())
+                b_value = float(b_entry.get())
+                z_value = float(z_entry.get())
 
-            # Clear the plot before drawing the new shape
-            self.initialize_plot()
+                if is_template:
+                    self.template_axis_values.append((a_value, b_value, z_value))
+                    self.template_ax.annotate(f"A:{a_value}, B:{b_value}, Z:{z_value}", (x, y), textcoords="offset points", xytext=(10, -10), ha='center', color='blue')
+                    self.template_canvas.draw()
+                else:
+                    self.template_axis_values.append((a_value, b_value, z_value))
+                    self.ax.annotate(f"A:{a_value}, B:{b_value}, Z:{z_value}", (x, y), textcoords="offset points", xytext=(10, -10), ha='center', color='blue')
+                    self.table_canvas.draw()
 
-            # Draw the shape by connecting the corners
-            x_vals, y_vals = zip(*self.corners)
-            self.ax.plot(x_vals + (x_vals[0],), y_vals + (y_vals[0],), 'g-')
-            self.canvas.draw()
+                self.last_a_value = a_value
+                self.last_b_value = b_value
+                self.last_z_value = z_value
+                popup.destroy()
+            except ValueError:
+                tk.messagebox.showerror("Error", "Please enter valid numbers for A, B, and Z axes.")
 
-            self.shape_drawn = True  # Mark that the shape has been drawn
+        save_button = ttk.Button(popup, text="Save", command=save_abz_values, bootstyle="success")
+        save_button.grid(row=3, column=0, columnspan=2, pady=10)
 
-        except ValueError:
-            self.show_error("Please enter valid numbers for the corners.")
+        popup.transient(self.root)
+        popup.grab_set()
+        self.root.wait_window(popup)
 
-    def clear_all(self):
-        self.points = []
-        self.spray_actions = []
-        self.axis_values = []  # Clear axis values
-        self.shape_drawn = False
-        self.initialize_plot()  # Clear the plot and reset
-
-    def ask_another_laptop(self):
-        response = tk.messagebox.askyesno("Another Laptop?", "Do you want to add another laptop?")
-        if response:
-            self.current_laptop += 1
-            self.clear_all()  # Clear only the points and A/B values, keep the shape
-            self.root.title(f"Nozzle Path Planner - Laptop {self.current_laptop}")
+    def save_template(self):
+        template_name = self.template_name_entry.get()
+        if template_name:
+            self.templates[template_name] = (self.template_points.copy(), self.template_spray_actions.copy(), self.template_axis_values.copy())
+            self.update_template_dropdown()
+            tk.messagebox.showinfo("Template Saved", f"Template '{template_name}' saved successfully!")
         else:
-            self.ask_generate_gcode()
+            tk.messagebox.showerror("Error", "Please enter a template name.")
 
-    def ask_generate_gcode(self):
-        response = tk.messagebox.askyesno("Generate G-code", "Do you want to generate the G-code?")
-        if response:
-            self.generate_gcode()
+    def update_template_dropdown(self):
+        menu = self.template_dropdown["menu"]
+        menu.delete(0, "end")
+        for template_name in self.templates.keys():
+            menu.add_command(label=template_name, command=lambda value=template_name: self.current_template.set(value))
+
+    def assign_template_to_laptop(self):
+        selected_template = self.current_template.get()
+        if selected_template in self.templates:
+            self.table_canvas.mpl_connect("pick_event", self.on_laptop_number_click)
+        else:
+            tk.messagebox.showerror("Error", "Please select a valid template.")
 
     def generate_gcode(self):
-        if len(self.points) < 2:
-            self.show_error("You need at least two points to generate a path.")
-            return
-
         gcode = []
-
-        # Initial setup commands
-        gcode.append("M64 P0")
-        gcode.append("M65 P1")
+        gcode.append("M64 P0 ; Ensure nozzle is off initially")
+        gcode.append("M65 P1 ; Reset")
         gcode.append("")
         gcode.append("; Set feed rate for the painting process")
         gcode.append("G1 F10000")
         gcode.append("")
 
-        # Generate G-code for each segment
-        for i in range(len(self.points) - 1):
-            start_point = self.points[i]
-            end_point = self.points[i + 1]
-            spray_action = self.spray_actions[i]
-            a_value, b_value = self.axis_values[i]
+        previous_position = None
 
-            # Move to start point with A and B axis values
-            gcode.append(f"; Move to point {i+1}")
-            gcode.append(f"G0 X{start_point[0]:.2f} Y{start_point[1]:.2f} Z0 A{a_value} B{b_value}")
+        for laptop_number, template_name in sorted(self.laptop_assignments.items()):
+            points, spray_actions, axis_values = self.templates[template_name]
+            x, y, _, _ = [l[2] for l in self.laptops if l[1] == laptop_number][0]
 
-            # Handle spray actions
-            if spray_action.lower() == "start":
-                gcode.append("M64 P1 (CYL ON) ; Turn on the spray")
-            elif spray_action.lower() == "stop":
-                gcode.append("M65 P1 (CYL OFF) ; Turn off the spray")
+            if previous_position:
+                gcode.append(f"G0 X{previous_position[0]:.2f} Y{previous_position[1]:.2f}")
+            else:
+                gcode.append(f"G0 X{x:.2f} Y{y:.2f}")
 
-            # Move to end point while spraying
-            gcode.append(f"G1 X{end_point[0]:.2f} Y{end_point[1]:.2f} Z0 A{a_value} B{b_value}")
+            for i in range(len(points)):
+                px, py = points[i]
+                a_value, b_value, z_value = axis_values[i]
+                action = spray_actions[i]
 
-            if spray_action.lower() == "stop":
-                # Stop spraying at the end of the segment if it's a stop point
-                gcode.append("M65 P1 (CYL OFF) ; Turn off the spray")
-            gcode.append("")
+                gcode.append(f"G1 X{x + px:.2f} Y{y + py:.2f} Z{z_value:.2f} A{a_value} B{b_value}")
+                gcode.append("G4 P0.1 ; Small pause to ensure position is reached")
 
-        # Return to home position
+                if action.lower() == "start":
+                    gcode.append("M64 P1 ; Turn on the spray")
+                    gcode.append("G4 P0.02 ; Slightly longer dwell to ensure spray turns on fully")
+                elif action.lower() == "stop":
+                    gcode.append("G4 P0.02 ; Slightly longer dwell to ensure spray turns off")
+                    gcode.append("M65 P1 ; Turn off the spray")
+                    gcode.append("G4 P1 ; Dwell for 1 second to ensure spray is completely off and any drips are cleared")
+
+                if i < len(points) - 1:
+                    next_px, next_py = points[i + 1]
+                    gcode.append(f"G1 X{x + next_px:.2f} Y{y + next_py:.2f} Z{z_value:.2f} A{a_value} B{b_value}")
+
+            previous_position = (x + points[-1][0], y + points[-1][1])
+
         gcode.append("; Return to Home Position")
-        gcode.append("G0 X0 Y0 Z0 A0 B0")
+        gcode.append("G1 X0 Y0 Z0 A0 B0")
+        gcode.append("")
+        gcode.append("M30 ; End of program")
 
-        # Join the gcode into a single string
         gcode_str = "\n".join(gcode)
-
-        # Display the generated G-code
         self.gcode_output.delete(1.0, tk.END)
         self.gcode_output.insert(tk.END, gcode_str)
+        print(gcode_str)  # Optionally print the G-code to the console for debugging
 
-        # Optionally print the generated G-code to the console for debugging
-        print(gcode_str)
-
-    def show_error(self, message):
-        error_window = ttk.Window(self.root, title="Error")
-        ttk.Label(error_window, text=message, padding=10).pack()
-        ttk.Button(error_window, text="Close", command=error_window.destroy, bootstyle="danger").pack(pady=5)
+    def clear_template(self):
+        self.template_ax.cla()
+        self.template_points.clear()
+        self.template_spray_actions.clear()
+        self.template_axis_values.clear()
+        self.template_ax.set_xlim(0, 100)
+        self.template_ax.set_ylim(0, 100)
+        self.template_canvas.draw()
 
 if __name__ == "__main__":
-    root = ttk.Window(themename="flatly")  # You can choose from various themes like 'darkly', 'flatly', etc.
+    root = ttkb.Window(themename="flatly")
     app = NozzlePathApp(root)
     root.mainloop()
