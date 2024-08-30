@@ -1,22 +1,21 @@
-# G-Code Generator for Laptop Painting
+# Radio App
 
-## Overview
-
-This application is a G-code generator designed for automating the painting process of multiple laptops arranged on a table. The application allows you to create and manage templates for nozzle paths, assign these templates to individual laptops, and generate the corresponding G-code for CNC machines or robotic arms.
+A desktop Radio App built using React and Electron. This app allows users to search for radio stations, add them to favorites, set a default station that auto-plays when the app starts, and schedule break times with custom audio notifications.
 
 ## Features
 
-- **Table and Laptop Visualization**: Visual representation of a table with laptops arranged in a grid. Each laptop can be selected by clicking on its number.
-- **Template Management**: Create, edit, and save templates for nozzle paths. Templates can include multiple points, each with customizable A, B, and Z axis values.
-- **Assign Templates**: Assign saved templates to specific laptops on the table. The assigned template name is displayed on the selected laptop.
-- **Undo/Redo Functionality**: Undo or redo actions when adding points to a template, allowing for flexible editing.
-- **G-Code Generation**: Generate G-code for the entire setup, including all assigned laptops. The generated G-code can be copied to the clipboard for use in CNC machines.
-- **Persistent Templates**: Save templates to a file, ensuring they persist between sessions. Templates can be reloaded when the application is restarted.
+- **Search Radio Stations:** Search for radio stations using the Radio Browser API.
+- **Favorite Stations:** Add your favorite stations to a list for quick access.
+- **Default Station:** Set a station as the default to auto-play when the app starts.
+- **Scheduled Breaks:** Automatically stop the radio at specific times and play a custom audio notification.
+- **Customizable Notifications:** Play an MP3 file before stopping the radio at scheduled break times.
+- **Calendar Off Days:** Mark specific days on a calendar when the radio should not play.
+
 
 ## Installation
 
 ### Prerequisites
 
-- Python 3.8 or higher
-- Required Python libraries: `tkinter`, `ttkbootstrap`, `matplotlib`
+- Node.js (version 14.x or later)
+- npm (version 6.x or later)
 
